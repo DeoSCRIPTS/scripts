@@ -1,0 +1,78 @@
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+local frame = script.Parent -- draggable UI
+local slider = frame:FindFirstChild("Slider") -- slider background
+local handle = slider:FindFirstChild("Handle") -- slider handle
+local speedText = frame:FindFirstChild("SpeedText") -- text label
+local speedInput = frame:FindFirstChild("SpeedInput") -- text box for infinite speed
+
+local minSpeed = 10
+local maxSliderSpeed = 300
+
+-- make ui draggable
+local dragging = false
+local dragStart, startPos
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- slider movement
+handle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local connection
+        connection = game:GetService("UserInputService").InputChanged:Connect(function(moveInput)
+            if moveInput.UserInputType == Enum.UserInputType.MouseMovement then
+                local sliderStart = slider.AbsolutePosition.X
+                local sliderEnd = sliderStart + slider.AbsoluteSize.X
+                local mouseX = math.clamp(moveInput.Position.X, sliderStart, sliderEnd)
+                local percent = (mouseX - sliderStart) / slider.AbsoluteSize.X
+                
+                -- update slider position
+                handle.Position = UDim2.new(percent, 0, 0.5, 0)
+                
+                -- update walkspeed
+                humanoid.WalkSpeed = minSpeed + (maxSliderSpeed - minSpeed) * percent
+                speedText.Text = "Speed: " .. math.floor(humanoid.WalkSpeed)
+            end
+        end)
+        
+        input.InputEnded:Connect(function()
+            if connection then
+                connection:Disconnect()
+            end
+        end)
+    end
+end)
+
+-- text input for infinite speed
+speedInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local speed = tonumber(speedInput.Text)
+        if speed then
+            humanoid.WalkSpeed = speed
+            speedText.Text = "Speed: " .. speed
+        else
+            speedInput.Text = ""
+        end
+    end
+end)
